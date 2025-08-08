@@ -1,0 +1,29 @@
+{
+    "name": "sleeper-mcp",
+    "version": "1.0.0",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "build": "npx tsc",
+        "format": "biome check --write"
+    },
+    "keywords": [
+        "ai",
+        "sleeper",
+        "fantasy-sports",
+        "model-context-protocol"
+    ],
+    "author": "DR",
+    "license": "MIT",
+    "description": "An MCP tool server exposing the [Sleeper fantasy sports API](https://docs.sleeper.com/), enabling AI models and agents to manage and query fantasy leagues.",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "1.15.1",
+        "@types/axios": "^0.14.4",
+        "axios": "^1.11.0"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.1.1",
+        "@types/node": "22.16.4",
+        "typescript": "5.8.3"
+    }
+}
