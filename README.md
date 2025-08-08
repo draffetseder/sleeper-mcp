@@ -5,15 +5,15 @@
 
 With this server running, an AI can perform actions on your behalf, such as:
 
-📊 Get Information: Fetch detailed data about users, leagues, rosters, and traded picks.
+- 📊 Get Information: Fetch detailed data about users, leagues, rosters, and traded picks.
 
-🏈 Analyze Players: Look up all available players or see who is currently trending (being added or dropped the most).
+- 🏈 Analyze Players: Look up all available players or see who is currently trending (being added or dropped the most).
 
-🗓️ Check League Activity: View weekly matchups, transactions, and the current state of the NFL season.
+- 🗓️ Check League Activity: View weekly matchups, transactions, and the current state of the NFL season.
 
-🏆 Follow the Playoffs: Retrieve the winner's and loser's brackets for a league.
+- 🏆 Follow the Playoffs: Retrieve the winner's and loser's brackets for a league.
 
-📝 Manage Drafts: Access information about past and upcoming drafts, including picks and draft boards.
+- 📝 Manage Drafts: Access information about past and upcoming drafts, including picks and draft boards.
 
 
 ### Setup
