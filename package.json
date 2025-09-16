@@ -19,7 +19,7 @@
     "dependencies": {
         "@modelcontextprotocol/sdk": "1.17.4",
         "@types/axios": "^0.14.4",
-        "axios": "^1.11.0"
+        "axios": "^1.12.1"
     },
     "devDependencies": {
         "@biomejs/biome": "2.2.2",
