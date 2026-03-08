@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SleeperServer } from '../src/SleeperServer.js';
 import axios from 'axios';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SleeperServer } from '../src/SleeperServer.js';
 
 // Mock axios
 vi.mock('axios');
@@ -27,9 +27,9 @@ describe('SleeperServer', () => {
   // However, the tool handlers are private callbacks.
   // A better approach for unit testing this specific implementation is to test the private _apiCall or specific methods
   // if we cast to any, or we can test the public interface (tool calling) if we mocked the transport.
-  // For simplicity and effectiveness, we will test the private methods by casting to any, 
+  // For simplicity and effectiveness, we will test the private methods by casting to any,
   // as setting up a full MCP client/transport for unit tests is complex.
-  
+
   const invokePrivateMethod = async (methodName: string, args?: any) => {
     return await (server as any)[methodName](args);
   };
@@ -37,7 +37,7 @@ describe('SleeperServer', () => {
   it('should get user', async () => {
     mockAxiosGet.mockResolvedValue({ data: { username: 'testuser' } });
     const result = await invokePrivateMethod('_getUser', { user_id_or_name: 'testuser' });
-    
+
     expect(mockAxiosGet).toHaveBeenCalledWith('/user/testuser', { params: undefined });
     expect(JSON.parse(result.content[0].text)).toEqual({ username: 'testuser' });
   });
@@ -59,16 +59,17 @@ describe('SleeperServer', () => {
   });
 
   it('should handle API errors', async () => {
-      const error = new Error('API Error');
-      (error as any).isAxiosError = true;
-      (error as any).response = { data: { message: 'Not Found' } };
-      
-      // We need to simulate the CallToolRequest handler to test error handling properly
-      // or just test that the private method throws and the handler catches it.
-      // Since _getUser calls _apiCall which awaits axios, it will throw.
-      mockAxiosGet.mockRejectedValue(error);
+    const error = new Error('API Error');
+    (error as any).isAxiosError = true;
+    (error as any).response = { data: { message: 'Not Found' } };
 
-      await expect(invokePrivateMethod('_getUser', { user_id_or_name: 'baduser' }))
-        .rejects.toThrow('API Error');
+    // We need to simulate the CallToolRequest handler to test error handling properly
+    // or just test that the private method throws and the handler catches it.
+    // Since _getUser calls _apiCall which awaits axios, it will throw.
+    mockAxiosGet.mockRejectedValue(error);
+
+    await expect(invokePrivateMethod('_getUser', { user_id_or_name: 'baduser' })).rejects.toThrow(
+      'API Error'
+    );
   });
 });

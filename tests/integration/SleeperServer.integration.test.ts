@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { SleeperServer } from '../../src/SleeperServer.js';
 
 describe('SleeperServer Integration (Real API)', () => {
@@ -18,7 +18,7 @@ describe('SleeperServer Integration (Real API)', () => {
   it('should fetch real NFL state', async () => {
     const result = await invokePrivateMethod('_getNflState');
     const data = JSON.parse(result.content[0].text);
-    
+
     expect(data).toHaveProperty('season');
     expect(data).toHaveProperty('week');
     expect(data).toHaveProperty('season_type');
@@ -35,7 +35,10 @@ describe('SleeperServer Integration (Real API)', () => {
 
   it('should fetch user leagues and discover a league ID', async () => {
     // We use a recent season to ensure data existence
-    const result = await invokePrivateMethod('_getUserLeagues', { user_id: userId, season: '2024' });
+    const result = await invokePrivateMethod('_getUserLeagues', {
+      user_id: userId,
+      season: '2024',
+    });
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
