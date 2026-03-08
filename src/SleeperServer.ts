@@ -8,6 +8,68 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 
+// Tool argument interfaces
+interface GetUserArgs {
+  user_id_or_name: string;
+}
+interface GetUserLeaguesArgs {
+  user_id: string;
+  season: string;
+  sport?: string;
+}
+interface GetLeagueArgs {
+  league_id: string;
+}
+interface GetRostersInLeagueArgs {
+  league_id: string;
+}
+interface GetUsersInLeagueArgs {
+  league_id: string;
+}
+interface GetMatchupsInLeagueArgs {
+  league_id: string;
+  week: number;
+}
+interface GetLeagueWinnersBracketArgs {
+  league_id: string;
+}
+interface GetLeagueLosersBracketArgs {
+  league_id: string;
+}
+interface GetTransactionsInLeagueArgs {
+  league_id: string;
+  week: number;
+}
+interface GetTradedPicksInLeagueArgs {
+  league_id: string;
+}
+interface GetUserDraftsArgs {
+  user_id: string;
+  season: string;
+  sport?: string;
+}
+interface GetLeagueDraftsArgs {
+  league_id: string;
+}
+interface GetDraftArgs {
+  draft_id: string;
+}
+interface GetDraftPicksArgs {
+  draft_id: string;
+}
+interface GetTradedPicksInDraftArgs {
+  draft_id: string;
+}
+interface GetAllPlayersArgs {
+  sport?: string;
+}
+interface GetTrendingPlayersArgs {
+  type: 'add' | 'drop';
+  sport?: string;
+  lookback_hours?: number;
+  limit?: number;
+}
+
 export class SleeperServer {
   private server: Server;
   private axiosInstance;
@@ -238,42 +300,42 @@ export class SleeperServer {
         switch (request.params.name) {
           // User
           case 'get_user':
-            return await this._getUser(request.params.arguments);
+            return await this._getUser(request.params.arguments as unknown as GetUserArgs);
           case 'get_user_leagues':
-            return await this._getUserLeagues(request.params.arguments);
+            return await this._getUserLeagues(request.params.arguments as unknown as GetUserLeaguesArgs);
           // League
           case 'get_league':
-            return await this._getLeague(request.params.arguments);
+            return await this._getLeague(request.params.arguments as unknown as GetLeagueArgs);
           case 'get_rosters_in_league':
-            return await this._getRostersInLeague(request.params.arguments);
+            return await this._getRostersInLeague(request.params.arguments as unknown as GetRostersInLeagueArgs);
           case 'get_users_in_league':
-            return await this._getUsersInLeague(request.params.arguments);
+            return await this._getUsersInLeague(request.params.arguments as unknown as GetUsersInLeagueArgs);
           case 'get_matchups_in_league':
-            return await this._getMatchupsInLeague(request.params.arguments);
+            return await this._getMatchupsInLeague(request.params.arguments as unknown as GetMatchupsInLeagueArgs);
           case 'get_league_winners_bracket':
-            return await this._getLeagueWinnersBracket(request.params.arguments);
+            return await this._getLeagueWinnersBracket(request.params.arguments as unknown as GetLeagueWinnersBracketArgs);
           case 'get_league_losers_bracket':
-            return await this._getLeagueLosersBracket(request.params.arguments);
+            return await this._getLeagueLosersBracket(request.params.arguments as unknown as GetLeagueLosersBracketArgs);
           case 'get_transactions_in_league':
-            return await this._getTransactionsInLeague(request.params.arguments);
+            return await this._getTransactionsInLeague(request.params.arguments as unknown as GetTransactionsInLeagueArgs);
           case 'get_traded_picks_in_league':
-            return await this._getTradedPicksInLeague(request.params.arguments);
+            return await this._getTradedPicksInLeague(request.params.arguments as unknown as GetTradedPicksInLeagueArgs);
           // Draft
           case 'get_user_drafts':
-            return await this._getUserDrafts(request.params.arguments);
+            return await this._getUserDrafts(request.params.arguments as unknown as GetUserDraftsArgs);
           case 'get_league_drafts':
-            return await this._getLeagueDrafts(request.params.arguments);
+            return await this._getLeagueDrafts(request.params.arguments as unknown as GetLeagueDraftsArgs);
           case 'get_draft':
-            return await this._getDraft(request.params.arguments);
+            return await this._getDraft(request.params.arguments as unknown as GetDraftArgs);
           case 'get_draft_picks':
-            return await this._getDraftPicks(request.params.arguments);
+            return await this._getDraftPicks(request.params.arguments as unknown as GetDraftPicksArgs);
           case 'get_traded_picks_in_draft':
-            return await this._getTradedPicksInDraft(request.params.arguments);
+            return await this._getTradedPicksInDraft(request.params.arguments as unknown as GetTradedPicksInDraftArgs);
           // Players
           case 'get_all_players':
-            return await this._getAllPlayers(request.params.arguments);
+            return await this._getAllPlayers(request.params.arguments as unknown as GetAllPlayersArgs);
           case 'get_trending_players':
-            return await this._getTrendingPlayers(request.params.arguments);
+            return await this._getTrendingPlayers(request.params.arguments as unknown as GetTrendingPlayersArgs);
           // General
           case 'get_nfl_state':
             return await this._getNflState();
@@ -306,74 +368,74 @@ export class SleeperServer {
 
   // --- Tool Implementations ---
 
-  private async _getUser(args: any) {
+  private async _getUser(args: GetUserArgs) {
     return this._apiCall(`/user/${args.user_id_or_name}`);
   }
 
-  private async _getUserLeagues(args: any) {
+  private async _getUserLeagues(args: GetUserLeaguesArgs) {
     const { user_id, sport = 'nfl', season } = args;
     return this._apiCall(`/user/${user_id}/leagues/${sport}/${season}`);
   }
 
-  private async _getLeague(args: any) {
+  private async _getLeague(args: GetLeagueArgs) {
     return this._apiCall(`/league/${args.league_id}`);
   }
 
-  private async _getRostersInLeague(args: any) {
+  private async _getRostersInLeague(args: GetRostersInLeagueArgs) {
     return this._apiCall(`/league/${args.league_id}/rosters`);
   }
 
-  private async _getUsersInLeague(args: any) {
+  private async _getUsersInLeague(args: GetUsersInLeagueArgs) {
     return this._apiCall(`/league/${args.league_id}/users`);
   }
 
-  private async _getMatchupsInLeague(args: any) {
+  private async _getMatchupsInLeague(args: GetMatchupsInLeagueArgs) {
     return this._apiCall(`/league/${args.league_id}/matchups/${args.week}`);
   }
 
-  private async _getLeagueWinnersBracket(args: any) {
+  private async _getLeagueWinnersBracket(args: GetLeagueWinnersBracketArgs) {
     return this._apiCall(`/league/${args.league_id}/winners_bracket`);
   }
 
-  private async _getLeagueLosersBracket(args: any) {
+  private async _getLeagueLosersBracket(args: GetLeagueLosersBracketArgs) {
     return this._apiCall(`/league/${args.league_id}/losers_bracket`);
   }
 
-  private async _getTransactionsInLeague(args: any) {
+  private async _getTransactionsInLeague(args: GetTransactionsInLeagueArgs) {
     return this._apiCall(`/league/${args.league_id}/transactions/${args.week}`);
   }
 
-  private async _getTradedPicksInLeague(args: any) {
+  private async _getTradedPicksInLeague(args: GetTradedPicksInLeagueArgs) {
     return this._apiCall(`/league/${args.league_id}/traded_picks`);
   }
 
-  private async _getUserDrafts(args: any) {
+  private async _getUserDrafts(args: GetUserDraftsArgs) {
     const { user_id, season, sport = 'nfl' } = args;
     return this._apiCall(`/user/${user_id}/drafts/${sport}/${season}`);
   }
 
-  private async _getLeagueDrafts(args: any) {
+  private async _getLeagueDrafts(args: GetLeagueDraftsArgs) {
     return this._apiCall(`/league/${args.league_id}/drafts`);
   }
 
-  private async _getDraft(args: any) {
+  private async _getDraft(args: GetDraftArgs) {
     return this._apiCall(`/draft/${args.draft_id}`);
   }
 
-  private async _getDraftPicks(args: any) {
+  private async _getDraftPicks(args: GetDraftPicksArgs) {
     return this._apiCall(`/draft/${args.draft_id}/picks`);
   }
 
-  private async _getTradedPicksInDraft(args: any) {
+  private async _getTradedPicksInDraft(args: GetTradedPicksInDraftArgs) {
     return this._apiCall(`/draft/${args.draft_id}/traded_picks`);
   }
 
-  private async _getAllPlayers(args: any) {
+  private async _getAllPlayers(args: GetAllPlayersArgs) {
     const { sport = 'nfl' } = args;
     return this._apiCall(`/players/${sport}`);
   }
 
-  private async _getTrendingPlayers(args: any) {
+  private async _getTrendingPlayers(args: GetTrendingPlayersArgs) {
     const { sport = 'nfl', type, lookback_hours = 24, limit = 25 } = args;
     return this._apiCall(`/players/${sport}/trending/${type}`, { lookback_hours, limit });
   }
