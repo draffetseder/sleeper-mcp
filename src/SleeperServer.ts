@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -7,6 +8,9 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 // Tool argument interfaces
 interface GetUserArgs {
@@ -78,7 +82,7 @@ export class SleeperServer {
     this.server = new Server(
       {
         name: 'sleeper-mcp',
-        version: '0.2.0', // Version updated to reflect changes
+        version,
       },
       {
         capabilities: {
@@ -302,40 +306,68 @@ export class SleeperServer {
           case 'get_user':
             return await this._getUser(request.params.arguments as unknown as GetUserArgs);
           case 'get_user_leagues':
-            return await this._getUserLeagues(request.params.arguments as unknown as GetUserLeaguesArgs);
+            return await this._getUserLeagues(
+              request.params.arguments as unknown as GetUserLeaguesArgs
+            );
           // League
           case 'get_league':
             return await this._getLeague(request.params.arguments as unknown as GetLeagueArgs);
           case 'get_rosters_in_league':
-            return await this._getRostersInLeague(request.params.arguments as unknown as GetRostersInLeagueArgs);
+            return await this._getRostersInLeague(
+              request.params.arguments as unknown as GetRostersInLeagueArgs
+            );
           case 'get_users_in_league':
-            return await this._getUsersInLeague(request.params.arguments as unknown as GetUsersInLeagueArgs);
+            return await this._getUsersInLeague(
+              request.params.arguments as unknown as GetUsersInLeagueArgs
+            );
           case 'get_matchups_in_league':
-            return await this._getMatchupsInLeague(request.params.arguments as unknown as GetMatchupsInLeagueArgs);
+            return await this._getMatchupsInLeague(
+              request.params.arguments as unknown as GetMatchupsInLeagueArgs
+            );
           case 'get_league_winners_bracket':
-            return await this._getLeagueWinnersBracket(request.params.arguments as unknown as GetLeagueWinnersBracketArgs);
+            return await this._getLeagueWinnersBracket(
+              request.params.arguments as unknown as GetLeagueWinnersBracketArgs
+            );
           case 'get_league_losers_bracket':
-            return await this._getLeagueLosersBracket(request.params.arguments as unknown as GetLeagueLosersBracketArgs);
+            return await this._getLeagueLosersBracket(
+              request.params.arguments as unknown as GetLeagueLosersBracketArgs
+            );
           case 'get_transactions_in_league':
-            return await this._getTransactionsInLeague(request.params.arguments as unknown as GetTransactionsInLeagueArgs);
+            return await this._getTransactionsInLeague(
+              request.params.arguments as unknown as GetTransactionsInLeagueArgs
+            );
           case 'get_traded_picks_in_league':
-            return await this._getTradedPicksInLeague(request.params.arguments as unknown as GetTradedPicksInLeagueArgs);
+            return await this._getTradedPicksInLeague(
+              request.params.arguments as unknown as GetTradedPicksInLeagueArgs
+            );
           // Draft
           case 'get_user_drafts':
-            return await this._getUserDrafts(request.params.arguments as unknown as GetUserDraftsArgs);
+            return await this._getUserDrafts(
+              request.params.arguments as unknown as GetUserDraftsArgs
+            );
           case 'get_league_drafts':
-            return await this._getLeagueDrafts(request.params.arguments as unknown as GetLeagueDraftsArgs);
+            return await this._getLeagueDrafts(
+              request.params.arguments as unknown as GetLeagueDraftsArgs
+            );
           case 'get_draft':
             return await this._getDraft(request.params.arguments as unknown as GetDraftArgs);
           case 'get_draft_picks':
-            return await this._getDraftPicks(request.params.arguments as unknown as GetDraftPicksArgs);
+            return await this._getDraftPicks(
+              request.params.arguments as unknown as GetDraftPicksArgs
+            );
           case 'get_traded_picks_in_draft':
-            return await this._getTradedPicksInDraft(request.params.arguments as unknown as GetTradedPicksInDraftArgs);
+            return await this._getTradedPicksInDraft(
+              request.params.arguments as unknown as GetTradedPicksInDraftArgs
+            );
           // Players
           case 'get_all_players':
-            return await this._getAllPlayers(request.params.arguments as unknown as GetAllPlayersArgs);
+            return await this._getAllPlayers(
+              request.params.arguments as unknown as GetAllPlayersArgs
+            );
           case 'get_trending_players':
-            return await this._getTrendingPlayers(request.params.arguments as unknown as GetTrendingPlayersArgs);
+            return await this._getTrendingPlayers(
+              request.params.arguments as unknown as GetTrendingPlayersArgs
+            );
           // General
           case 'get_nfl_state':
             return await this._getNflState();
