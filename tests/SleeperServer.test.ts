@@ -1,11 +1,11 @@
-import axios from 'axios';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SleeperServer } from '../src/SleeperServer.js';
+import axios from "axios";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SleeperServer } from "../src/SleeperServer.js";
 
 // Mock axios
-vi.mock('axios');
+vi.mock("axios");
 
-describe('SleeperServer', () => {
+describe("SleeperServer", () => {
   let server: SleeperServer;
   let mockAxiosGet: any;
 
@@ -34,42 +34,42 @@ describe('SleeperServer', () => {
     return await (server as any)[methodName](args);
   };
 
-  it('should get user', async () => {
-    mockAxiosGet.mockResolvedValue({ data: { username: 'testuser' } });
-    const result = await invokePrivateMethod('_getUser', { user_id_or_name: 'testuser' });
+  it("should get user", async () => {
+    mockAxiosGet.mockResolvedValue({ data: { username: "testuser" } });
+    const result = await invokePrivateMethod("_getUser", { user_id_or_name: "testuser" });
 
-    expect(mockAxiosGet).toHaveBeenCalledWith('/user/testuser', { params: undefined });
-    expect(JSON.parse(result.content[0].text)).toEqual({ username: 'testuser' });
+    expect(mockAxiosGet).toHaveBeenCalledWith("/user/testuser", { params: undefined });
+    expect(JSON.parse(result.content[0].text)).toEqual({ username: "testuser" });
   });
 
-  it('should get user leagues', async () => {
+  it("should get user leagues", async () => {
     mockAxiosGet.mockResolvedValue({ data: [] });
-    await invokePrivateMethod('_getUserLeagues', { user_id: '123', season: '2024' });
+    await invokePrivateMethod("_getUserLeagues", { user_id: "123", season: "2024" });
 
-    expect(mockAxiosGet).toHaveBeenCalledWith('/user/123/leagues/nfl/2024', { params: undefined });
+    expect(mockAxiosGet).toHaveBeenCalledWith("/user/123/leagues/nfl/2024", { params: undefined });
   });
 
-  it('should get trending players with defaults', async () => {
+  it("should get trending players with defaults", async () => {
     mockAxiosGet.mockResolvedValue({ data: [] });
-    await invokePrivateMethod('_getTrendingPlayers', { type: 'add' });
+    await invokePrivateMethod("_getTrendingPlayers", { type: "add" });
 
-    expect(mockAxiosGet).toHaveBeenCalledWith('/players/nfl/trending/add', {
+    expect(mockAxiosGet).toHaveBeenCalledWith("/players/nfl/trending/add", {
       params: { lookback_hours: 24, limit: 25 },
     });
   });
 
-  it('should handle API errors', async () => {
-    const error = new Error('API Error');
+  it("should handle API errors", async () => {
+    const error = new Error("API Error");
     (error as any).isAxiosError = true;
-    (error as any).response = { data: { message: 'Not Found' } };
+    (error as any).response = { data: { message: "Not Found" } };
 
     // We need to simulate the CallToolRequest handler to test error handling properly
     // or just test that the private method throws and the handler catches it.
     // Since _getUser calls _apiCall which awaits axios, it will throw.
     mockAxiosGet.mockRejectedValue(error);
 
-    await expect(invokePrivateMethod('_getUser', { user_id_or_name: 'baduser' })).rejects.toThrow(
-      'API Error'
+    await expect(invokePrivateMethod("_getUser", { user_id_or_name: "baduser" })).rejects.toThrow(
+      "API Error"
     );
   });
 });
