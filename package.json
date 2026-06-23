@@ -8,7 +8,12 @@
     "test:integration": "vitest run tests/integration",
     "test:watch": "vitest",
     "build": "npx tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check",
     "format": "biome check --write"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [
     "ai",
@@ -21,7 +26,6 @@
   "description": "An MCP tool server exposing the [Sleeper fantasy sports API](https://docs.sleeper.com/), enabling AI models and agents to manage and query fantasy leagues.",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.27.1",
-    "@types/axios": "^0.14.4",
     "axios": "^1.13.5"
   },
   "devDependencies": {
