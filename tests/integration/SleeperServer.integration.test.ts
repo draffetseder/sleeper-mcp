@@ -1,14 +1,38 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SleeperServer } from "../../src/SleeperServer.js";
+
+// A completed 2021 league belonging to Sleeper's public `sleeper` demo account.
+const KNOWN_LEAGUE = {
+  id: "713883719282282496",
+  season: "2021",
+  name: "We Love Sleeper",
+};
 
 describe("SleeperServer Integration (Real API)", () => {
   let server: SleeperServer;
   let userId: string;
-  let leagueId: string;
   let draftId: string;
+  let cacheDir: string;
+  let previousCacheDir: string | undefined;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    previousCacheDir = process.env.SLEEPER_MCP_CACHE_DIR;
+    cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), "sleeper-mcp-integration-"));
+    process.env.SLEEPER_MCP_CACHE_DIR = cacheDir;
+
     server = new SleeperServer();
+  });
+
+  afterAll(async () => {
+    if (previousCacheDir === undefined) {
+      delete process.env.SLEEPER_MCP_CACHE_DIR;
+    } else {
+      process.env.SLEEPER_MCP_CACHE_DIR = previousCacheDir;
+    }
+    await fs.rm(cacheDir, { recursive: true, force: true });
   });
 
   const invokePrivateMethod = async (methodName: string, args?: any) => {
@@ -33,56 +57,46 @@ describe("SleeperServer Integration (Real API)", () => {
     userId = data.user_id;
   });
 
-  it("should fetch user leagues and discover a league ID", async () => {
-    // We use a recent season to ensure data existence
+  it("should fetch user leagues", async () => {
     const result = await invokePrivateMethod("_getUserLeagues", {
       user_id: userId,
-      season: "2024",
+      season: KNOWN_LEAGUE.season,
     });
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("league_id");
-      leagueId = data[0].league_id;
-    }
+    expect(data.length).toBeGreaterThan(0);
+    expect(data.map((league: any) => league.league_id)).toContain(KNOWN_LEAGUE.id);
   });
 
   it("should fetch league details", async () => {
-    if (!leagueId) return; // Skip if no league found
-
-    const result = await invokePrivateMethod("_getLeague", { league_id: leagueId });
+    const result = await invokePrivateMethod("_getLeague", { league_id: KNOWN_LEAGUE.id });
     const data = JSON.parse(result.content[0].text);
 
-    expect(data).toHaveProperty("league_id", leagueId);
-    expect(data).toHaveProperty("name");
-    expect(data).toHaveProperty("roster_positions");
+    expect(data).toHaveProperty("league_id", KNOWN_LEAGUE.id);
+    expect(data).toHaveProperty("name", KNOWN_LEAGUE.name);
+    expect(Array.isArray(data.roster_positions)).toBe(true);
+    expect(data.roster_positions.length).toBeGreaterThan(0);
   });
 
   it("should fetch rosters in a league", async () => {
-    if (!leagueId) return;
-
-    const result = await invokePrivateMethod("_getRostersInLeague", { league_id: leagueId });
+    const result = await invokePrivateMethod("_getRostersInLeague", { league_id: KNOWN_LEAGUE.id });
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("roster_id");
-      expect(data[0]).toHaveProperty("owner_id");
-    }
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]).toHaveProperty("roster_id");
+    expect(data[0]).toHaveProperty("owner_id");
   });
 
   it("should fetch users in a league", async () => {
-    if (!leagueId) return;
-
-    const result = await invokePrivateMethod("_getUsersInLeague", { league_id: leagueId });
+    const result = await invokePrivateMethod("_getUsersInLeague", { league_id: KNOWN_LEAGUE.id });
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("user_id");
-      expect(data[0]).toHaveProperty("display_name");
-    }
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]).toHaveProperty("user_id");
+    expect(data[0]).toHaveProperty("display_name");
   });
 
   it("should fetch user drafts and discover a draft ID", async () => {
@@ -90,15 +104,12 @@ describe("SleeperServer Integration (Real API)", () => {
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("draft_id");
-      draftId = data[0].draft_id;
-    }
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]).toHaveProperty("draft_id");
+    draftId = data[0].draft_id;
   });
 
   it("should fetch specific draft details", async () => {
-    if (!draftId) return;
-
     const result = await invokePrivateMethod("_getDraft", { draft_id: draftId });
     const data = JSON.parse(result.content[0].text);
 
@@ -114,4 +125,17 @@ describe("SleeperServer Integration (Real API)", () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data[0]).toHaveProperty("player_id");
   });
+
+  it("searches live players by position and team", async () => {
+    const handler = (server as any).moduleHandlers.get("search_players");
+    const result = await handler({ position: "QB", team: "BUF" });
+    const body = JSON.parse(result.content[0].text);
+
+    expect(result.isError).toBeUndefined();
+    expect(typeof body.fetched_at).toBe("string");
+    expect(body.total_matches).toBeGreaterThan(0);
+    expect(body.players.length).toBeGreaterThan(0);
+    expect(typeof body.players[0].full_name).toBe("string");
+    expect(body.players[0].team).toBe("BUF");
+  }, 60000);
 });

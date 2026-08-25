@@ -7,7 +7,7 @@ With this server running, an AI can perform actions on your behalf, such as:
 
 - 📊 Get Information: Fetch detailed data about users, leagues, rosters, and traded picks.
 
-- 🏈 Analyze Players: Look up all available players or see who is currently trending (being added or dropped the most).
+- 🏈 Analyze Players: Search players by name, position, or team, resolve player IDs to names, or see who is currently trending (being added or dropped the most).
 
 - 🗓️ Check League Activity: View weekly matchups, transactions, and the current state of the NFL season.
 
@@ -32,7 +32,10 @@ Configure MCP server:
     "mcpServers": {
         "sleeper-mcp": {
             "command": "node",
-            "args": ["/path/to/repo/build/index.js"]
+            "args": ["/path/to/repo/build/index.js"],
+            "env": {
+                "SLEEPER_MCP_CACHE_DIR": "/path/to/cache/dir"
+            }
         }
     }
 }
