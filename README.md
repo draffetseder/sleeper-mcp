@@ -25,7 +25,10 @@ npm install
 npm run build
 ```
 
-Configure MCP server:
+Claude Code picks up the checked-in `.mcp.json` automatically when started from the
+repo root (approve it once when prompted). Build first — `build/` is not committed.
+
+For other MCP clients, configure the server manually:
 
 ```
 {
