@@ -1,5 +1,6 @@
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolModule } from "../ToolModule.js";
+import { asContent, asError } from "../toolResult.js";
 import type { PlayerCache } from "./PlayerCache.js";
 import {
   collectValidFieldNames,
@@ -43,15 +44,6 @@ interface LookupArgs {
   force_refresh?: boolean;
   sport?: string;
 }
-
-const asContent = (payload: unknown): CallToolResult => ({
-  content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-});
-
-const asError = (message: string): CallToolResult => ({
-  content: [{ type: "text", text: message }],
-  isError: true,
-});
 
 const clampLimit = (limit: number | undefined, fields: string[]): number => {
   const max = fields.includes("all") ? ALL_FIELDS_MAX_LIMIT : MAX_LIMIT;

@@ -151,4 +151,104 @@ describe("SleeperServer", () => {
       }
     });
   });
+  describe("response shaping", () => {
+    it("prunes null fields out of a user response", async () => {
+      mockAxiosGet.mockResolvedValue({
+        data: { user_id: "1", username: "sleeper", real_name: null, avatar: null },
+      });
+      const result = await invokePrivateMethod("_getUser", { user_id_or_name: "sleeper" });
+
+      expect(JSON.parse(result.content[0].text)).toEqual({ user_id: "1", username: "sleeper" });
+    });
+
+    it("never echoes account-private fields on a user response", async () => {
+      mockAxiosGet.mockResolvedValue({
+        data: { user_id: "1", email: "a@b.c", phone: "555", token: "secret" },
+      });
+      const result = await invokePrivateMethod("_getUser", { user_id_or_name: "sleeper" });
+
+      expect(JSON.parse(result.content[0].text)).toEqual({ user_id: "1" });
+    });
+
+    it("drops scoring_settings from a league response by default", async () => {
+      mockAxiosGet.mockResolvedValue({
+        data: { league_id: "9", name: "L", shard: 95, scoring_settings: { rec: 1 } },
+      });
+      const result = await invokePrivateMethod("_getLeague", { league_id: "9" });
+
+      expect(JSON.parse(result.content[0].text)).toEqual({ league_id: "9", name: "L" });
+    });
+
+    it("returns scoring_settings when the caller asks for it", async () => {
+      mockAxiosGet.mockResolvedValue({
+        data: { league_id: "9", name: "L", shard: 95, scoring_settings: { rec: 1 } },
+      });
+      const result = await invokePrivateMethod("_getLeague", {
+        league_id: "9",
+        fields: ["scoring_settings"],
+      });
+
+      expect(JSON.parse(result.content[0].text)).toEqual({
+        league_id: "9",
+        name: "L",
+        scoring_settings: { rec: 1 },
+      });
+    });
+
+    it("returns the untouched response when fields is [all]", async () => {
+      const data = { league_id: "9", shard: 95, scoring_settings: { rec: 1 }, keepers: null };
+      mockAxiosGet.mockResolvedValue({ data });
+      const result = await invokePrivateMethod("_getLeague", {
+        league_id: "9",
+        fields: ["all"],
+      });
+
+      expect(JSON.parse(result.content[0].text)).toEqual(data);
+    });
+
+    it("emits compact JSON rather than indented JSON", async () => {
+      mockAxiosGet.mockResolvedValue({ data: { league_id: "9", name: "L" } });
+      const result = await invokePrivateMethod("_getLeague", { league_id: "9" });
+
+      expect(result.content[0].text).not.toContain("\n");
+    });
+
+    it("advertises a fields escape hatch on every tool that drops data", () => {
+      const definitions = (server as any).allToolDefinitions();
+      const shaped = [
+        "get_user",
+        "get_user_leagues",
+        "get_league",
+        "get_users_in_league",
+        "get_user_drafts",
+        "get_league_drafts",
+        "get_draft",
+        "get_draft_picks",
+      ];
+
+      for (const name of shaped) {
+        const definition = definitions.find((entry: any) => entry.name === name);
+        expect(definition.inputSchema.properties.fields, name).toBeDefined();
+        expect(definition.inputSchema.required, name).not.toContain("fields");
+      }
+    });
+
+    it("tells the caller how to get scoring_settings back", () => {
+      const definitions = (server as any).allToolDefinitions();
+      const league = definitions.find((entry: any) => entry.name === "get_league");
+
+      expect(league.description).toContain("scoring_settings");
+    });
+
+    it("rejects a fields argument that is not an array", async () => {
+      mockAxiosGet.mockResolvedValue({ data: { league_id: "9" } });
+      const result = await invokePrivateMethod("_getLeague", {
+        league_id: "9",
+        fields: "scoring_settings",
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("fields");
+    });
+  });
 });

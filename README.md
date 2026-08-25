@@ -25,7 +25,10 @@ npm install
 npm run build
 ```
 
-Configure MCP server:
+Claude Code picks up the checked-in `.mcp.json` automatically when started from the
+repo root (approve it once when prompted). Build first — `build/` is not committed.
+
+For other MCP clients, configure the server manually:
 
 ```
 {
@@ -38,5 +41,22 @@ Configure MCP server:
             }
         }
     }
+}
+```
+
+### Your own account (optional)
+
+Drop a `.sleeper-mcp.json` in the repo root with your own Sleeper identifiers and an
+assistant can answer "how does my roster look?" without asking you for IDs every time:
+
+```
+cp .sleeper-mcp.example.json .sleeper-mcp.json
+```
+
+```json
+{
+    "username": "your-sleeper-username",
+    "user_id": "000000000000000000",
+    "league_id": "000000000000000000"
 }
 ```
