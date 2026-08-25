@@ -141,3 +141,11 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Agent working notes and local tool settings (see CLAUDE.md "Open Source")
+.claude/
+
+# Sleeper player dictionary cache — bulk third-party data
+# Written to an OS cache dir by default, but SLEEPER_MCP_CACHE_DIR may be relative.
+players-*.json
+*.json.*.tmp
