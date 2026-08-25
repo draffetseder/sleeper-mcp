@@ -17,6 +17,9 @@ import type { ToolModule } from "./ToolModule.js";
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
+// Every tool this server exposes is a GET against Sleeper's public API.
+const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
+
 // Tool argument interfaces
 interface GetUserArgs {
   user_id_or_name: string;
@@ -114,7 +117,7 @@ export class SleeperServer {
   }
 
   private staticToolDefinitions(): Tool[] {
-    return [
+    const definitions: Tool[] = [
       // User Endpoints
       {
         name: "get_user",
@@ -294,6 +297,8 @@ export class SleeperServer {
         inputSchema: { type: "object", properties: {}, required: [] },
       },
     ];
+
+    return definitions.map((definition) => ({ ...definition, annotations: READ_ONLY }));
   }
 
   private allToolDefinitions(): Tool[] {

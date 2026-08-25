@@ -85,6 +85,16 @@ describe("SleeperServer", () => {
       expect(names).not.toContain("get_all_players");
     });
 
+    it("advertises every tool as read-only", () => {
+      const definitions = (server as any).allToolDefinitions();
+      expect(definitions.length).toBeGreaterThan(0);
+
+      for (const definition of definitions) {
+        expect(definition.annotations?.readOnlyHint, definition.name).toBe(true);
+        expect(definition.annotations?.openWorldHint, definition.name).toBe(true);
+      }
+    });
+
     it("routes a module tool to its handler", async () => {
       const handler = (server as any).moduleHandlers.get("search_players");
       expect(typeof handler).toBe("function");
