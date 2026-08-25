@@ -60,8 +60,5 @@ export const NOISE: Record<ShapeKey, string[]> = {
 
   draft: ["last_message_id", "last_message_time"],
 
-  draft_pick: [
-    "reactions",
-    "metadata.sport",
-  ],
+  draft_pick: ["reactions", "metadata.sport"],
 };
