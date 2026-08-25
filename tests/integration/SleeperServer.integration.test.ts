@@ -7,7 +7,7 @@ import { SleeperServer } from "../../src/SleeperServer.js";
 describe("SleeperServer Integration (Real API)", () => {
   let server: SleeperServer;
   let userId: string;
-  let leagueId: string = "1389707133087404032";
+  const leagueId = "1389707133087404032";
   let draftId: string;
   let cacheDir: string;
   let previousCacheDir: string | undefined;
@@ -51,18 +51,17 @@ describe("SleeperServer Integration (Real API)", () => {
     userId = data.user_id;
   });
 
-  it("should fetch user leagues including the known league", async () => {
+  it("should fetch user leagues", async () => {
     const result = await invokePrivateMethod("_getUserLeagues", {
       user_id: userId,
-      season: "2024",
+      season: "2022",
     });
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("league_id");
-      leagueId = data[0].league_id;
-    }
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]).toHaveProperty("league_id");
+    expect(data[0]).toHaveProperty("name");
   });
 
   it("should fetch league details", async () => {
@@ -90,10 +89,9 @@ describe("SleeperServer Integration (Real API)", () => {
     const data = JSON.parse(result.content[0].text);
 
     expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("user_id");
-      expect(data[0]).toHaveProperty("display_name");
-    }
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]).toHaveProperty("user_id");
+    expect(data[0]).toHaveProperty("display_name");
   });
 
   it("should fetch user drafts and discover a draft ID", async () => {
