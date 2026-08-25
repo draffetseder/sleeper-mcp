@@ -117,6 +117,43 @@ describe("SleeperServer Integration (Real API)", () => {
     expect(data).toHaveProperty("status");
   });
 
+  it("omits scoring_settings from a live league by default", async () => {
+    const result = await invokePrivateMethod("_getLeague", { league_id: KNOWN_LEAGUE.id });
+    const data = JSON.parse(result.content[0].text);
+
+    expect(data).toHaveProperty("league_id", KNOWN_LEAGUE.id);
+    expect(data).not.toHaveProperty("scoring_settings");
+    expect(data).not.toHaveProperty("last_message_id");
+  });
+
+  it("returns scoring_settings for a live league when asked", async () => {
+    const result = await invokePrivateMethod("_getLeague", {
+      league_id: KNOWN_LEAGUE.id,
+      fields: ["scoring_settings"],
+    });
+    const data = JSON.parse(result.content[0].text);
+
+    expect(data).toHaveProperty("scoring_settings");
+    expect(data).not.toHaveProperty("last_message_id");
+  });
+
+  it("keeps the player identity on live draft picks while dropping the noise", async () => {
+    // draftId above comes from the user's drafts and may belong to a league that never
+    // drafted; go through KNOWN_LEAGUE to be sure of landing on a draft with picks.
+    const drafts = await invokePrivateMethod("_getLeagueDrafts", { league_id: KNOWN_LEAGUE.id });
+    const leagueDraftId = JSON.parse(drafts.content[0].text)[0].draft_id;
+
+    const result = await invokePrivateMethod("_getDraftPicks", { draft_id: leagueDraftId });
+    const data = JSON.parse(result.content[0].text);
+
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0].metadata).toHaveProperty("first_name");
+    expect(data[0].metadata).toHaveProperty("position");
+    expect(data[0].metadata).toHaveProperty("team");
+    expect(data[0].metadata).not.toHaveProperty("news_updated");
+  });
+
   it("should fetch trending players", async () => {
     const result = await invokePrivateMethod("_getTrendingPlayers", { type: "add", limit: 5 });
     const data = JSON.parse(result.content[0].text);

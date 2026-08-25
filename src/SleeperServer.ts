@@ -12,31 +12,80 @@ import {
 import axios from "axios";
 import { PlayerCache } from "./players/PlayerCache.js";
 import { createPlayersModule } from "./players/tools.js";
+import type { ShapeKey } from "./responses/noise.js";
+import { shapeResponse } from "./responses/shape.js";
 import type { ToolModule } from "./ToolModule.js";
+import { asContent, asError } from "./toolResult.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
+interface LocalDefaults {
+  user_id?: string;
+  username?: string;
+  league_id?: string;
+}
+
+const loadLocalDefaults = (): LocalDefaults => {
+  try {
+    return require("../.sleeper-mcp.json") as LocalDefaults;
+  } catch {
+    return {};
+  }
+};
+
 // Every tool this server exposes is a GET against Sleeper's public API.
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
+
+const SHAPED_TOOLS = new Set([
+  "get_user",
+  "get_user_leagues",
+  "get_league",
+  "get_users_in_league",
+  "get_user_drafts",
+  "get_league_drafts",
+  "get_draft",
+  "get_draft_picks",
+]);
+
+const FIELDS_DESCRIPTION =
+  "Fields to add back to the trimmed response. Name a dropped field (for example " +
+  '["scoring_settings"]) to re-include just that one, or use ["all"] to get the raw ' +
+  "Sleeper response with nothing removed.";
+
+const withFieldsParam = (inputSchema: Tool["inputSchema"]): Tool["inputSchema"] => ({
+  ...inputSchema,
+  properties: {
+    ...inputSchema.properties,
+    fields: {
+      type: "array",
+      items: { type: "string" },
+      description: FIELDS_DESCRIPTION,
+    },
+  },
+});
 
 // Tool argument interfaces
 interface GetUserArgs {
   user_id_or_name: string;
+  fields?: unknown;
 }
 interface GetUserLeaguesArgs {
   user_id: string;
   season: string;
   sport?: string;
+  fields?: unknown;
 }
 interface GetLeagueArgs {
   league_id: string;
+  fields?: unknown;
 }
 interface GetRostersInLeagueArgs {
   league_id: string;
 }
 interface GetUsersInLeagueArgs {
   league_id: string;
+  fields?: unknown;
 }
 interface GetMatchupsInLeagueArgs {
   league_id: string;
@@ -59,15 +108,19 @@ interface GetUserDraftsArgs {
   user_id: string;
   season: string;
   sport?: string;
+  fields?: unknown;
 }
 interface GetLeagueDraftsArgs {
   league_id: string;
+  fields?: unknown;
 }
 interface GetDraftArgs {
   draft_id: string;
+  fields?: unknown;
 }
 interface GetDraftPicksArgs {
   draft_id: string;
+  fields?: unknown;
 }
 interface GetTradedPicksInDraftArgs {
   draft_id: string;
@@ -79,13 +132,22 @@ interface GetTrendingPlayersArgs {
   limit?: number;
 }
 
+interface ApiCallOptions {
+  params?: object;
+  shape?: ShapeKey;
+  fields?: unknown;
+}
+
 export class SleeperServer {
   private server: Server;
   private axiosInstance;
   private modules: ToolModule[];
   private moduleHandlers: Map<string, (args: unknown) => Promise<CallToolResult>>;
+  private defaults: LocalDefaults;
 
   constructor() {
+    this.defaults = loadLocalDefaults();
+
     this.server = new Server(
       {
         name: "sleeper-mcp",
@@ -149,7 +211,10 @@ export class SleeperServer {
       // League Endpoints
       {
         name: "get_league",
-        description: "Get league information by league ID",
+        description:
+          "Get league information by league ID. The league's scoring_settings block is " +
+          'omitted by default because it is large; pass fields: ["scoring_settings"] when ' +
+          "you need to answer a scoring question.",
         inputSchema: {
           type: "object",
           properties: { league_id: { type: "string", description: "The ID of the league" } },
@@ -298,12 +363,55 @@ export class SleeperServer {
       },
     ];
 
-    return definitions.map((definition) => ({ ...definition, annotations: READ_ONLY }));
+    return definitions.map((definition) => ({
+      ...definition,
+      annotations: READ_ONLY,
+      inputSchema: SHAPED_TOOLS.has(definition.name)
+        ? withFieldsParam(definition.inputSchema)
+        : definition.inputSchema,
+    }));
+  }
+
+  // Which schema params the local config can stand in for. `user_id_or_name` accepts a
+  // username, but Sleeper's /user/{id}/leagues and /user/{id}/drafts endpoints 404 on one,
+  // so `user_id` is only ever defaulted from a real numeric ID.
+  private defaultedParams(): Map<string, string> {
+    const { user_id, username, league_id } = this.defaults;
+    return new Map(
+      Object.entries({
+        league_id,
+        user_id,
+        user_id_or_name: username ?? user_id,
+      }).filter(([, value]) => typeof value === "string" && value.length > 0) as [string, string][]
+    );
+  }
+
+  // A param that stays in `required` is a param the model will always send, which would
+  // make the defaults dead weight. Drop exactly the ones the config can supply.
+  private relaxRequired(definitions: Tool[]): Tool[] {
+    const defaulted = this.defaultedParams();
+    if (defaulted.size === 0) return definitions;
+
+    return definitions.map((tool) => ({
+      ...tool,
+      inputSchema: {
+        ...tool.inputSchema,
+        required: (tool.inputSchema.required ?? []).filter((name) => !defaulted.has(name)),
+      },
+    }));
+  }
+
+  private withDefaults(args: unknown): Record<string, unknown> {
+    const merged = { ...(args as Record<string, unknown> | null | undefined) };
+    for (const [name, value] of this.defaultedParams()) {
+      if (merged[name] === undefined) merged[name] = value;
+    }
+    return merged;
   }
 
   private allToolDefinitions(): Tool[] {
     return [
-      ...this.staticToolDefinitions(),
+      ...this.relaxRequired(this.staticToolDefinitions()),
       ...this.modules.flatMap((module) => module.definitions),
     ];
   }
@@ -320,69 +428,53 @@ export class SleeperServer {
           return await moduleHandler(request.params.arguments);
         }
 
+        const args = this.withDefaults(request.params.arguments);
+
         switch (request.params.name) {
           // User
           case "get_user":
-            return await this._getUser(request.params.arguments as unknown as GetUserArgs);
+            return await this._getUser(args as unknown as GetUserArgs);
           case "get_user_leagues":
-            return await this._getUserLeagues(
-              request.params.arguments as unknown as GetUserLeaguesArgs
-            );
+            return await this._getUserLeagues(args as unknown as GetUserLeaguesArgs);
           // League
           case "get_league":
-            return await this._getLeague(request.params.arguments as unknown as GetLeagueArgs);
+            return await this._getLeague(args as unknown as GetLeagueArgs);
           case "get_rosters_in_league":
-            return await this._getRostersInLeague(
-              request.params.arguments as unknown as GetRostersInLeagueArgs
-            );
+            return await this._getRostersInLeague(args as unknown as GetRostersInLeagueArgs);
           case "get_users_in_league":
-            return await this._getUsersInLeague(
-              request.params.arguments as unknown as GetUsersInLeagueArgs
-            );
+            return await this._getUsersInLeague(args as unknown as GetUsersInLeagueArgs);
           case "get_matchups_in_league":
-            return await this._getMatchupsInLeague(
-              request.params.arguments as unknown as GetMatchupsInLeagueArgs
-            );
+            return await this._getMatchupsInLeague(args as unknown as GetMatchupsInLeagueArgs);
           case "get_league_winners_bracket":
             return await this._getLeagueWinnersBracket(
-              request.params.arguments as unknown as GetLeagueWinnersBracketArgs
+              args as unknown as GetLeagueWinnersBracketArgs
             );
           case "get_league_losers_bracket":
             return await this._getLeagueLosersBracket(
-              request.params.arguments as unknown as GetLeagueLosersBracketArgs
+              args as unknown as GetLeagueLosersBracketArgs
             );
           case "get_transactions_in_league":
             return await this._getTransactionsInLeague(
-              request.params.arguments as unknown as GetTransactionsInLeagueArgs
+              args as unknown as GetTransactionsInLeagueArgs
             );
           case "get_traded_picks_in_league":
             return await this._getTradedPicksInLeague(
-              request.params.arguments as unknown as GetTradedPicksInLeagueArgs
+              args as unknown as GetTradedPicksInLeagueArgs
             );
           // Draft
           case "get_user_drafts":
-            return await this._getUserDrafts(
-              request.params.arguments as unknown as GetUserDraftsArgs
-            );
+            return await this._getUserDrafts(args as unknown as GetUserDraftsArgs);
           case "get_league_drafts":
-            return await this._getLeagueDrafts(
-              request.params.arguments as unknown as GetLeagueDraftsArgs
-            );
+            return await this._getLeagueDrafts(args as unknown as GetLeagueDraftsArgs);
           case "get_draft":
-            return await this._getDraft(request.params.arguments as unknown as GetDraftArgs);
+            return await this._getDraft(args as unknown as GetDraftArgs);
           case "get_draft_picks":
-            return await this._getDraftPicks(
-              request.params.arguments as unknown as GetDraftPicksArgs
-            );
+            return await this._getDraftPicks(args as unknown as GetDraftPicksArgs);
           case "get_traded_picks_in_draft":
-            return await this._getTradedPicksInDraft(
-              request.params.arguments as unknown as GetTradedPicksInDraftArgs
-            );
+            return await this._getTradedPicksInDraft(args as unknown as GetTradedPicksInDraftArgs);
           // Players
           case "get_trending_players":
-            return await this._getTrendingPlayers(
-              request.params.arguments as unknown as GetTrendingPlayersArgs
-            );
+            return await this._getTrendingPlayers(args as unknown as GetTrendingPlayersArgs);
           // General
           case "get_nfl_state":
             return await this._getNflState();
@@ -406,38 +498,50 @@ export class SleeperServer {
     });
   }
 
-  private async _apiCall(endpoint: string, params?: object) {
+  private async _apiCall(endpoint: string, options: ApiCallOptions = {}) {
+    const { params, shape, fields } = options;
+
+    if (fields !== undefined && !Array.isArray(fields)) {
+      return asError(
+        `fields must be an array of field names, for example ["all"]. Received: ${typeof fields}.`
+      );
+    }
+
     const response = await this.axiosInstance.get(endpoint, { params });
-    return {
-      content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
-    };
+    return asContent(shapeResponse(response.data, shape, fields));
   }
 
   // --- Tool Implementations ---
 
   private async _getUser(args: GetUserArgs) {
-    return this._apiCall(`/user/${args.user_id_or_name}`);
+    return this._apiCall(`/user/${args.user_id_or_name}`, { shape: "user", fields: args.fields });
   }
 
   private async _getUserLeagues(args: GetUserLeaguesArgs) {
     const { user_id, sport = "nfl", season } = args;
-    return this._apiCall(`/user/${user_id}/leagues/${sport}/${season}`);
+    return this._apiCall(`/user/${user_id}/leagues/${sport}/${season}`, {
+      shape: "league",
+      fields: args.fields,
+    });
   }
 
   private async _getLeague(args: GetLeagueArgs) {
-    return this._apiCall(`/league/${args.league_id}`);
+    return this._apiCall(`/league/${args.league_id}`, { shape: "league", fields: args.fields });
   }
 
   private async _getRostersInLeague(args: GetRostersInLeagueArgs) {
-    return this._apiCall(`/league/${args.league_id}/rosters`);
+    return this._apiCall(`/league/${args.league_id}/rosters`, { shape: "roster" });
   }
 
   private async _getUsersInLeague(args: GetUsersInLeagueArgs) {
-    return this._apiCall(`/league/${args.league_id}/users`);
+    return this._apiCall(`/league/${args.league_id}/users`, {
+      shape: "league_user",
+      fields: args.fields,
+    });
   }
 
   private async _getMatchupsInLeague(args: GetMatchupsInLeagueArgs) {
-    return this._apiCall(`/league/${args.league_id}/matchups/${args.week}`);
+    return this._apiCall(`/league/${args.league_id}/matchups/${args.week}`, { shape: "matchup" });
   }
 
   private async _getLeagueWinnersBracket(args: GetLeagueWinnersBracketArgs) {
@@ -458,19 +562,28 @@ export class SleeperServer {
 
   private async _getUserDrafts(args: GetUserDraftsArgs) {
     const { user_id, season, sport = "nfl" } = args;
-    return this._apiCall(`/user/${user_id}/drafts/${sport}/${season}`);
+    return this._apiCall(`/user/${user_id}/drafts/${sport}/${season}`, {
+      shape: "draft",
+      fields: args.fields,
+    });
   }
 
   private async _getLeagueDrafts(args: GetLeagueDraftsArgs) {
-    return this._apiCall(`/league/${args.league_id}/drafts`);
+    return this._apiCall(`/league/${args.league_id}/drafts`, {
+      shape: "draft",
+      fields: args.fields,
+    });
   }
 
   private async _getDraft(args: GetDraftArgs) {
-    return this._apiCall(`/draft/${args.draft_id}`);
+    return this._apiCall(`/draft/${args.draft_id}`, { shape: "draft", fields: args.fields });
   }
 
   private async _getDraftPicks(args: GetDraftPicksArgs) {
-    return this._apiCall(`/draft/${args.draft_id}/picks`);
+    return this._apiCall(`/draft/${args.draft_id}/picks`, {
+      shape: "draft_pick",
+      fields: args.fields,
+    });
   }
 
   private async _getTradedPicksInDraft(args: GetTradedPicksInDraftArgs) {
@@ -479,7 +592,9 @@ export class SleeperServer {
 
   private async _getTrendingPlayers(args: GetTrendingPlayersArgs) {
     const { sport = "nfl", type, lookback_hours = 24, limit = 25 } = args;
-    return this._apiCall(`/players/${sport}/trending/${type}`, { lookback_hours, limit });
+    return this._apiCall(`/players/${sport}/trending/${type}`, {
+      params: { lookback_hours, limit },
+    });
   }
 
   private async _getNflState() {
