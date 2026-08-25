@@ -6,6 +6,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 An MCP (Model Context Protocol) tool server that wraps the [Sleeper fantasy sports API](https://docs.sleeper.com/) and exposes it as a set of read-only tools an AI can call to query users, leagues, rosters, matchups, transactions, drafts, and players.
 
+## Open Source
+
+**This repo is public and open source ** Everything committed here is visible to
+anyone. Before adding a file or staging a change, assume a stranger will read it.
+
+1. **No personal or machine-specific data.** Never commit real usernames, Sleeper user
+   or league IDs belonging to the repo owner, email addresses, or absolute local paths
+   (`C:/...`, `/Users/...`). Use placeholders instead, e.g.
+   `/absolute/path/to/sleeper-mcp/build/index.js`.
+2. **No secrets — and none are needed.** The Sleeper API is public and unauthenticated
+   (see the axios `baseURL` in `src/SleeperServer.ts`; there is no auth header
+   anywhere). This server reads no credentials. Do not introduce an API-key setting, an
+   `.env` requirement, or auth config — if a task seems to call for one, the task is
+   wrong. The single environment variable read is `SLEEPER_MCP_CACHE_DIR`, a filesystem
+   path, not a secret.
+3. **Keep agent artifacts out of the repo.** Progress summaries, run reports, plans,
+   handoffs, ledgers are working notes, not public documentation.
+4. **Test fixtures use public data on purpose.** The integration tests query Sleeper's
+   public `sleeper` demo account and its completed 2021 league. Do not swap in the
+   owner's real account or a live league to make a test more realistic; the comment
+   above that fixture explains why a finished season was chosen.
+
 ## Commands
 
 ```bash
