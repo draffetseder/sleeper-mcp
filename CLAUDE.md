@@ -54,7 +54,7 @@ registered through a small tool-module seam.
 - **Two request handlers** registered in `setupToolHandlers()`:
   - `ListToolsRequestSchema` — returns the static array of tool definitions (name, description, JSON `inputSchema`) plus each module's definitions.
   - `CallToolRequestSchema` — checks `moduleHandlers` for `request.params.name` first, then falls through to a `switch` dispatching to a private `_methodName` per static tool.
-- **`_apiCall(endpoint, params?)`** — the single chokepoint for all HTTP made by static tools. Every static tool method builds a path string and delegates here. It calls the shared axios instance (baseURL `https://api.sleeper.app/v1`) and wraps `response.data` as MCP text content (`JSON.stringify`, 2-space indent).
+- **`_apiCall(endpoint, { params?, shape?, fields? })`** — the single chokepoint for all HTTP made by static tools. Every static tool method builds a path string and delegates here. It calls the shared axios instance (baseURL `https://api.sleeper.app/v1`), passes `response.data` through `shapeResponse` (see **Response shaping**), and wraps the result as compact MCP text content via `asContent` (`src/toolResult.ts`, shared with the player module).
 - **Error handling**: the `CallToolRequest` handler catches axios errors and returns them as `{ isError: true }` MCP content; non-axios errors are re-thrown.
 - **Tool modules**: `src/ToolModule.ts` defines `{ definitions, handlers }`.
   `SleeperServer` concatenates each module's `definitions` onto its own tool list
@@ -71,7 +71,11 @@ that structure is rigidly parallel, such a tool touches four places in `SleeperS
 1. Add an `Args` interface near the top.
 2. Add a tool definition object to the array returned by `staticToolDefinitions()`.
 3. Add a `case` to the `switch` in the `CallToolRequestSchema` handler.
-4. Add the private `_method` that calls `_apiCall` with the right Sleeper endpoint path.
+4. Add the private `_method` that calls `_apiCall` with the right Sleeper endpoint path,
+   plus a `shape` key if the endpoint has a drop-list in `src/responses/noise.ts`.
+
+If that new tool drops data, add its name to `SHAPED_TOOLS` in `SleeperServer.ts` so the
+`fields` escape hatch is advertised on its schema.
 
 Optional/defaulted params (e.g. `sport = 'nfl'`) are defaulted in the method body via destructuring, not enforced by the schema.
 

@@ -149,3 +149,6 @@ vite.config.ts.timestamp-*
 # Written to an OS cache dir by default, but SLEEPER_MCP_CACHE_DIR may be relative.
 players-*.json
 *.json.*.tmp
+
+# Local convenience defaults (your own Sleeper account / league).
+.sleeper-mcp.json
