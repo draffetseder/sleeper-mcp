@@ -8,7 +8,7 @@ An MCP (Model Context Protocol) tool server that wraps the [Sleeper fantasy spor
 
 ## Open Source
 
-**This repo is public and open source ** Everything committed here is visible to
+**This repo is public and open source.** Everything committed here is visible to
 anyone. Before adding a file or staging a change, assume a stranger will read it.
 
 1. **No personal or machine-specific data.** Never commit real usernames, Sleeper user
@@ -81,7 +81,7 @@ module's `tools.ts` alone — its `definitions` and `handlers` are picked up aut
 ## Testing
 
 - **Unit tests** (`tests/SleeperServer.test.ts`) mock axios (`vi.mock('axios')`) and invoke private methods by casting the server to `any` (`(server as any)[methodName](args)`) — a full MCP client/transport is intentionally not set up. Assertions check the exact endpoint path and params passed to axios.
-- **Integration tests** (`tests/integration/`) hit the real Sleeper API and are excluded from the default `npm test`. They chain calls (user → leagues → league → draft) and conditionally skip later assertions when upstream data is absent (`if (!leagueId) return`), so they tolerate changing live data.
+- **Integration tests** (`tests/integration/`) hit the real Sleeper API and are excluded from the default `npm test`. They pin the `KNOWN_LEAGUE` fixture — the public `sleeper` demo account's completed 2021 league — and assert against it.
 - **Pure logic** (`tests/players/playerSearch.test.ts`) uses a hand-written
   fixture and no mocks. **`PlayerCache`** (`tests/players/PlayerCache.test.ts`)
   uses a temp directory, `vi.useFakeTimers()` for TTL boundaries, and a stubbed
