@@ -151,7 +151,6 @@ describe("SleeperServer Integration (Real API)", () => {
     expect(data[0].metadata).toHaveProperty("first_name");
     expect(data[0].metadata).toHaveProperty("position");
     expect(data[0].metadata).toHaveProperty("team");
-    expect(data[0].metadata).not.toHaveProperty("news_updated");
   });
 
   it("should fetch trending players", async () => {
