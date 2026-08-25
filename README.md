@@ -43,3 +43,20 @@ For other MCP clients, configure the server manually:
     }
 }
 ```
+
+### Your own account (optional)
+
+Drop a `.sleeper-mcp.json` in the repo root with your own Sleeper identifiers and an
+assistant can answer "how does my roster look?" without asking you for IDs every time:
+
+```
+cp .sleeper-mcp.example.json .sleeper-mcp.json
+```
+
+```json
+{
+    "username": "your-sleeper-username",
+    "user_id": "000000000000000000",
+    "league_id": "000000000000000000"
+}
+```

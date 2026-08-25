@@ -28,6 +28,38 @@ anyone. Before adding a file or staging a change, assume a stranger will read it
    owner's real account or a live league to make a test more realistic; the comment
    above that fixture explains why a finished season was chosen.
 
+## Local user defaults (`.sleeper-mcp.json`)
+
+When a request is about the *user's own* fantasy data ("my roster", "my league", "how
+did I do last week"), read `.sleeper-mcp.json` in the repo root **before asking them
+for identifiers**. It is the local convenience file each developer keeps for their own
+Sleeper account:
+
+```json
+{
+  "username": "your-sleeper-username",
+  "user_id": "000000000000000000",
+  "league_id": "000000000000000000"
+}
+```
+
+It is gitignored and untracked on purpose — real account and league IDs are personal
+data 
+
+**If the file does not exist, create it** rather than making the user look up IDs by
+hand; this server's own tools resolve everything from a username:
+
+1. `cp .sleeper-mcp.example.json .sleeper-mcp.json`
+2. Ask the user for their Sleeper **username** — the only value they need to know.
+3. `get_user` with that username → `user_id`.
+4. `get_user_leagues` with that `user_id` and the current season (`get_nfl_state`
+   returns `league_season`) → take the `league_id`, asking which league if there are
+   several.
+5. Write the three values into `.sleeper-mcp.json`.
+
+Never commit the populated file, and never copy its values into README, CLAUDE.md,
+tests, fixtures, or commit messages.
+
 ## Commands
 
 ```bash
