@@ -1,0 +1,57 @@
+import type { PlayerDictionary } from "../../src/players/types.js";
+
+export const FIXTURE: PlayerDictionary = {
+  "1": {
+    player_id: "1",
+    full_name: "A.J. Brown",
+    search_full_name: "ajbrown",
+    position: "WR",
+    fantasy_positions: ["WR"],
+    team: "PHI",
+    search_rank: 12,
+  },
+  "2": {
+    player_id: "2",
+    full_name: "Taysom Hill",
+    search_full_name: "taysomhill",
+    position: "QB",
+    fantasy_positions: ["TE", "QB"],
+    team: "NO",
+    search_rank: 140,
+  },
+  "3": {
+    player_id: "3",
+    full_name: "Free Agent Back",
+    search_full_name: "freeagentback",
+    position: "RB",
+    fantasy_positions: ["RB"],
+    team: null,
+    search_rank: 300,
+  },
+  "4": {
+    player_id: "4",
+    full_name: "Unranked Rookie",
+    search_full_name: "unrankedrookie",
+    position: "WR",
+    fantasy_positions: ["WR"],
+    team: "PHI",
+    search_rank: null,
+  },
+  "5": {
+    player_id: "5",
+    full_name: "No Search Name",
+    position: "TE",
+    fantasy_positions: ["TE"],
+    team: "BUF",
+    search_rank: 200,
+  },
+  BUF: {
+    player_id: "BUF",
+    first_name: "Buffalo",
+    last_name: "Bills",
+    position: "DEF",
+    fantasy_positions: ["DEF"],
+    team: "BUF",
+    search_rank: 90,
+  },
+};

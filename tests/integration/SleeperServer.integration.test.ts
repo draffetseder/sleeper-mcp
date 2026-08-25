@@ -1,14 +1,32 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SleeperServer } from "../../src/SleeperServer.js";
 
 describe("SleeperServer Integration (Real API)", () => {
   let server: SleeperServer;
   let userId: string;
-  let leagueId: string;
+  let leagueId: string = "1389707133087404032";
   let draftId: string;
+  let cacheDir: string;
+  let previousCacheDir: string | undefined;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    previousCacheDir = process.env.SLEEPER_MCP_CACHE_DIR;
+    cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), "sleeper-mcp-integration-"));
+    process.env.SLEEPER_MCP_CACHE_DIR = cacheDir;
+
     server = new SleeperServer();
+  });
+
+  afterAll(async () => {
+    if (previousCacheDir === undefined) {
+      delete process.env.SLEEPER_MCP_CACHE_DIR;
+    } else {
+      process.env.SLEEPER_MCP_CACHE_DIR = previousCacheDir;
+    }
+    await fs.rm(cacheDir, { recursive: true, force: true });
   });
 
   const invokePrivateMethod = async (methodName: string, args?: any) => {
@@ -33,8 +51,7 @@ describe("SleeperServer Integration (Real API)", () => {
     userId = data.user_id;
   });
 
-  it("should fetch user leagues and discover a league ID", async () => {
-    // We use a recent season to ensure data existence
+  it("should fetch user leagues including the known league", async () => {
     const result = await invokePrivateMethod("_getUserLeagues", {
       user_id: userId,
       season: "2024",
@@ -49,8 +66,6 @@ describe("SleeperServer Integration (Real API)", () => {
   });
 
   it("should fetch league details", async () => {
-    if (!leagueId) return; // Skip if no league found
-
     const result = await invokePrivateMethod("_getLeague", { league_id: leagueId });
     const data = JSON.parse(result.content[0].text);
 
@@ -60,8 +75,6 @@ describe("SleeperServer Integration (Real API)", () => {
   });
 
   it("should fetch rosters in a league", async () => {
-    if (!leagueId) return;
-
     const result = await invokePrivateMethod("_getRostersInLeague", { league_id: leagueId });
     const data = JSON.parse(result.content[0].text);
 
@@ -73,8 +86,6 @@ describe("SleeperServer Integration (Real API)", () => {
   });
 
   it("should fetch users in a league", async () => {
-    if (!leagueId) return;
-
     const result = await invokePrivateMethod("_getUsersInLeague", { league_id: leagueId });
     const data = JSON.parse(result.content[0].text);
 
@@ -114,4 +125,17 @@ describe("SleeperServer Integration (Real API)", () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data[0]).toHaveProperty("player_id");
   });
+
+  it("searches live players by position and team", async () => {
+    const handler = (server as any).moduleHandlers.get("search_players");
+    const result = await handler({ position: "QB", team: "BUF" });
+    const body = JSON.parse(result.content[0].text);
+
+    expect(result.isError).toBeUndefined();
+    expect(typeof body.fetched_at).toBe("string");
+    expect(body.total_matches).toBeGreaterThan(0);
+    expect(body.players.length).toBeGreaterThan(0);
+    expect(typeof body.players[0].full_name).toBe("string");
+    expect(body.players[0].team).toBe("BUF");
+  }, 60000);
 });

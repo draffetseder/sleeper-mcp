@@ -3,11 +3,16 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
+  type CallToolResult,
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
+  type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import axios from "axios";
+import { PlayerCache } from "./players/PlayerCache.js";
+import { createPlayersModule } from "./players/tools.js";
+import type { ToolModule } from "./ToolModule.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -64,9 +69,6 @@ interface GetDraftPicksArgs {
 interface GetTradedPicksInDraftArgs {
   draft_id: string;
 }
-interface GetAllPlayersArgs {
-  sport?: string;
-}
 interface GetTrendingPlayersArgs {
   type: "add" | "drop";
   sport?: string;
@@ -77,6 +79,8 @@ interface GetTrendingPlayersArgs {
 export class SleeperServer {
   private server: Server;
   private axiosInstance;
+  private modules: ToolModule[];
+  private moduleHandlers: Map<string, (args: unknown) => Promise<CallToolResult>>;
 
   constructor() {
     this.server = new Server(
@@ -95,6 +99,11 @@ export class SleeperServer {
       baseURL: "https://api.sleeper.app/v1",
     });
 
+    this.modules = [createPlayersModule(new PlayerCache(this.axiosInstance))];
+    this.moduleHandlers = new Map(
+      this.modules.flatMap((module) => Object.entries(module.handlers))
+    );
+
     this.setupToolHandlers();
 
     this.server.onerror = (error) => console.error("[MCP Error]", error);
@@ -104,203 +113,208 @@ export class SleeperServer {
     });
   }
 
+  private staticToolDefinitions(): Tool[] {
+    return [
+      // User Endpoints
+      {
+        name: "get_user",
+        description: "Get user information by username or user ID",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id_or_name: {
+              type: "string",
+              description: "The username or user ID of the user",
+            },
+          },
+          required: ["user_id_or_name"],
+        },
+      },
+      {
+        name: "get_user_leagues",
+        description: "Get all leagues for a user in a given season",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: { type: "string", description: "The ID of the user" },
+            sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
+            season: { type: "string", description: "The season (e.g., 2024)" },
+          },
+          required: ["user_id", "season"],
+        },
+      },
+      // League Endpoints
+      {
+        name: "get_league",
+        description: "Get league information by league ID",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      {
+        name: "get_rosters_in_league",
+        description: "Get all rosters for a given league ID",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      {
+        name: "get_users_in_league",
+        description: "Get all users for a given league ID",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      {
+        name: "get_matchups_in_league",
+        description: "Get all matchups for a given week in a league",
+        inputSchema: {
+          type: "object",
+          properties: {
+            league_id: { type: "string", description: "The ID of the league" },
+            week: { type: "number", description: "The week number" },
+          },
+          required: ["league_id", "week"],
+        },
+      },
+      {
+        name: "get_league_winners_bracket",
+        description: "Get the winners playoff bracket for a league",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      {
+        name: "get_league_losers_bracket",
+        description: "Get the losers playoff bracket for a league",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      {
+        name: "get_transactions_in_league",
+        description: "Get all transactions for a given week in a league",
+        inputSchema: {
+          type: "object",
+          properties: {
+            league_id: { type: "string", description: "The ID of the league" },
+            week: { type: "number", description: "The week number" },
+          },
+          required: ["league_id", "week"],
+        },
+      },
+      {
+        name: "get_traded_picks_in_league",
+        description: "Get all traded picks in a league",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      // Draft Endpoints
+      {
+        name: "get_user_drafts",
+        description: "Get all drafts for a user in a given season",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: { type: "string", description: "The ID of the user" },
+            season: { type: "string", description: "The season (e.g., 2024)" },
+            sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
+          },
+          required: ["user_id", "season"],
+        },
+      },
+      {
+        name: "get_league_drafts",
+        description: "Get all drafts for a given league ID",
+        inputSchema: {
+          type: "object",
+          properties: { league_id: { type: "string", description: "The ID of the league" } },
+          required: ["league_id"],
+        },
+      },
+      {
+        name: "get_draft",
+        description: "Get a specific draft by its ID",
+        inputSchema: {
+          type: "object",
+          properties: { draft_id: { type: "string", description: "The ID of the draft" } },
+          required: ["draft_id"],
+        },
+      },
+      {
+        name: "get_draft_picks",
+        description: "Get all picks in a specific draft",
+        inputSchema: {
+          type: "object",
+          properties: { draft_id: { type: "string", description: "The ID of the draft" } },
+          required: ["draft_id"],
+        },
+      },
+      {
+        name: "get_traded_picks_in_draft",
+        description: "Get all traded picks in a specific draft",
+        inputSchema: {
+          type: "object",
+          properties: { draft_id: { type: "string", description: "The ID of the draft" } },
+          required: ["draft_id"],
+        },
+      },
+      // Players Endpoints
+      {
+        name: "get_trending_players",
+        description: "Get trending players (adds or drops)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
+            type: { type: "string", description: "`add` or `drop`", enum: ["add", "drop"] },
+            lookback_hours: { type: "number", description: "Hours to look back", default: 24 },
+            limit: { type: "number", description: "Number of players to return", default: 25 },
+          },
+          required: ["type"],
+        },
+      },
+      // General Endpoints
+      {
+        name: "get_nfl_state",
+        description: "Get the current state of the NFL season",
+        inputSchema: { type: "object", properties: {}, required: [] },
+      },
+    ];
+  }
+
+  private allToolDefinitions(): Tool[] {
+    return [
+      ...this.staticToolDefinitions(),
+      ...this.modules.flatMap((module) => module.definitions),
+    ];
+  }
+
   private setupToolHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
-        // User Endpoints
-        {
-          name: "get_user",
-          description: "Get user information by username or user ID",
-          inputSchema: {
-            type: "object",
-            properties: {
-              user_id_or_name: {
-                type: "string",
-                description: "The username or user ID of the user",
-              },
-            },
-            required: ["user_id_or_name"],
-          },
-        },
-        {
-          name: "get_user_leagues",
-          description: "Get all leagues for a user in a given season",
-          inputSchema: {
-            type: "object",
-            properties: {
-              user_id: { type: "string", description: "The ID of the user" },
-              sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
-              season: { type: "string", description: "The season (e.g., 2024)" },
-            },
-            required: ["user_id", "season"],
-          },
-        },
-        // League Endpoints
-        {
-          name: "get_league",
-          description: "Get league information by league ID",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        {
-          name: "get_rosters_in_league",
-          description: "Get all rosters for a given league ID",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        {
-          name: "get_users_in_league",
-          description: "Get all users for a given league ID",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        {
-          name: "get_matchups_in_league",
-          description: "Get all matchups for a given week in a league",
-          inputSchema: {
-            type: "object",
-            properties: {
-              league_id: { type: "string", description: "The ID of the league" },
-              week: { type: "number", description: "The week number" },
-            },
-            required: ["league_id", "week"],
-          },
-        },
-        {
-          name: "get_league_winners_bracket",
-          description: "Get the winners playoff bracket for a league",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        {
-          name: "get_league_losers_bracket",
-          description: "Get the losers playoff bracket for a league",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        {
-          name: "get_transactions_in_league",
-          description: "Get all transactions for a given week in a league",
-          inputSchema: {
-            type: "object",
-            properties: {
-              league_id: { type: "string", description: "The ID of the league" },
-              week: { type: "number", description: "The week number" },
-            },
-            required: ["league_id", "week"],
-          },
-        },
-        {
-          name: "get_traded_picks_in_league",
-          description: "Get all traded picks in a league",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        // Draft Endpoints
-        {
-          name: "get_user_drafts",
-          description: "Get all drafts for a user in a given season",
-          inputSchema: {
-            type: "object",
-            properties: {
-              user_id: { type: "string", description: "The ID of the user" },
-              season: { type: "string", description: "The season (e.g., 2024)" },
-              sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
-            },
-            required: ["user_id", "season"],
-          },
-        },
-        {
-          name: "get_league_drafts",
-          description: "Get all drafts for a given league ID",
-          inputSchema: {
-            type: "object",
-            properties: { league_id: { type: "string", description: "The ID of the league" } },
-            required: ["league_id"],
-          },
-        },
-        {
-          name: "get_draft",
-          description: "Get a specific draft by its ID",
-          inputSchema: {
-            type: "object",
-            properties: { draft_id: { type: "string", description: "The ID of the draft" } },
-            required: ["draft_id"],
-          },
-        },
-        {
-          name: "get_draft_picks",
-          description: "Get all picks in a specific draft",
-          inputSchema: {
-            type: "object",
-            properties: { draft_id: { type: "string", description: "The ID of the draft" } },
-            required: ["draft_id"],
-          },
-        },
-        {
-          name: "get_traded_picks_in_draft",
-          description: "Get all traded picks in a specific draft",
-          inputSchema: {
-            type: "object",
-            properties: { draft_id: { type: "string", description: "The ID of the draft" } },
-            required: ["draft_id"],
-          },
-        },
-        // Players Endpoints
-        {
-          name: "get_all_players",
-          description: "Get all players for a given sport",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
-            },
-            required: ["sport"],
-          },
-        },
-        {
-          name: "get_trending_players",
-          description: "Get trending players (adds or drops)",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
-              type: { type: "string", description: "`add` or `drop`", enum: ["add", "drop"] },
-              lookback_hours: { type: "number", description: "Hours to look back", default: 24 },
-              limit: { type: "number", description: "Number of players to return", default: 25 },
-            },
-            required: ["type"],
-          },
-        },
-        // General Endpoints
-        {
-          name: "get_nfl_state",
-          description: "Get the current state of the NFL season",
-          inputSchema: { type: "object", properties: {}, required: [] },
-        },
-      ],
+      tools: this.allToolDefinitions(),
     }));
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
+        const moduleHandler = this.moduleHandlers.get(request.params.name);
+        if (moduleHandler) {
+          return await moduleHandler(request.params.arguments);
+        }
+
         switch (request.params.name) {
           // User
           case "get_user":
@@ -360,10 +374,6 @@ export class SleeperServer {
               request.params.arguments as unknown as GetTradedPicksInDraftArgs
             );
           // Players
-          case "get_all_players":
-            return await this._getAllPlayers(
-              request.params.arguments as unknown as GetAllPlayersArgs
-            );
           case "get_trending_players":
             return await this._getTrendingPlayers(
               request.params.arguments as unknown as GetTrendingPlayersArgs
@@ -460,11 +470,6 @@ export class SleeperServer {
 
   private async _getTradedPicksInDraft(args: GetTradedPicksInDraftArgs) {
     return this._apiCall(`/draft/${args.draft_id}/traded_picks`);
-  }
-
-  private async _getAllPlayers(args: GetAllPlayersArgs) {
-    const { sport = "nfl" } = args;
-    return this._apiCall(`/players/${sport}`);
   }
 
   private async _getTrendingPlayers(args: GetTrendingPlayersArgs) {
