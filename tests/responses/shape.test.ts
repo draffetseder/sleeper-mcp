@@ -119,7 +119,7 @@ describe("shapeResponse", () => {
     };
     expect(shapeResponse(pick, "draft_pick")).toEqual({
       player_id: "4034",
-      metadata: { first_name: "Christian", position: "RB", team: "CAR" },
+      metadata: { first_name: "Christian", position: "RB", team: "CAR", news_updated: "162" },
     });
   });
 });
