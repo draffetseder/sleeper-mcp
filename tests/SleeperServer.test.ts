@@ -60,6 +60,33 @@ describe("SleeperServer", () => {
     });
   });
 
+  it("should get player ownership with defaults", async () => {
+    const ownership = { "4046": { owned: 87.3, started: 71.2 }, "9509": { owned: 12.1 } };
+    mockAxiosGet.mockResolvedValue({ data: ownership });
+    const result = await invokePrivateMethod("_getPlayerOwnership", { season: "2026", week: 3 });
+
+    expect(mockAxiosGet).toHaveBeenCalledWith("/players/nfl/research/regular/2026/3", {
+      params: undefined,
+      baseURL: "https://api.sleeper.app",
+    });
+    expect(JSON.parse(result.content[0].text)).toEqual(ownership);
+  });
+
+  it("should get player ownership for an explicit sport and season type", async () => {
+    mockAxiosGet.mockResolvedValue({ data: {} });
+    await invokePrivateMethod("_getPlayerOwnership", {
+      sport: "nfl",
+      season: "2025",
+      week: 1,
+      season_type: "post",
+    });
+
+    expect(mockAxiosGet).toHaveBeenCalledWith("/players/nfl/research/post/2025/1", {
+      params: undefined,
+      baseURL: "https://api.sleeper.app",
+    });
+  });
+
   it("should handle API errors", async () => {
     const error = new Error("API Error");
     (error as any).isAxiosError = true;

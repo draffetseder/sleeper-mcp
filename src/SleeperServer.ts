@@ -37,6 +37,8 @@ const loadLocalDefaults = (): LocalDefaults => {
 // Every tool this server exposes is a GET against Sleeper's public API.
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
 
+const SLEEPER_ROOT_BASE_URL = "https://api.sleeper.app";
+
 const SHAPED_TOOLS = new Set([
   "get_user",
   "get_user_leagues",
@@ -132,10 +134,18 @@ interface GetTrendingPlayersArgs {
   limit?: number;
 }
 
+interface GetPlayerOwnershipArgs {
+  season: string;
+  week: number;
+  sport?: string;
+  season_type?: "regular" | "pre" | "post";
+}
+
 interface ApiCallOptions {
   params?: object;
   shape?: ShapeKey;
   fields?: unknown;
+  baseURL?: string;
 }
 
 export class SleeperServer {
@@ -355,6 +365,29 @@ export class SleeperServer {
           required: ["type"],
         },
       },
+      {
+        name: "get_player_ownership",
+        description:
+          "Get Sleeper's league-wide roster ownership (% Rostered) and start (% Started) percentages " +
+          "for all players in a given week. Returns a map keyed by player_id — combine with " +
+          "get_players_by_id or search_players to resolve names, and get_rosters_in_league to filter " +
+          "to free agents only. Uses an undocumented Sleeper endpoint; may break without notice.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sport: { type: "string", description: "The sport (e.g., nfl)", default: "nfl" },
+            season: { type: "string", description: "Season year, e.g. 2026" },
+            week: { type: "number", description: "Week number within the season" },
+            season_type: {
+              type: "string",
+              description: "regular, pre, or post",
+              enum: ["regular", "pre", "post"],
+              default: "regular",
+            },
+          },
+          required: ["season", "week"],
+        },
+      },
       // General Endpoints
       {
         name: "get_nfl_state",
@@ -475,6 +508,8 @@ export class SleeperServer {
           // Players
           case "get_trending_players":
             return await this._getTrendingPlayers(args as unknown as GetTrendingPlayersArgs);
+          case "get_player_ownership":
+            return await this._getPlayerOwnership(args as unknown as GetPlayerOwnershipArgs);
           // General
           case "get_nfl_state":
             return await this._getNflState();
@@ -499,7 +534,7 @@ export class SleeperServer {
   }
 
   private async _apiCall(endpoint: string, options: ApiCallOptions = {}) {
-    const { params, shape, fields } = options;
+    const { params, shape, fields, baseURL } = options;
 
     if (fields !== undefined && !Array.isArray(fields)) {
       return asError(
@@ -507,7 +542,7 @@ export class SleeperServer {
       );
     }
 
-    const response = await this.axiosInstance.get(endpoint, { params });
+    const response = await this.axiosInstance.get(endpoint, { params, baseURL });
     return asContent(shapeResponse(response.data, shape, fields));
   }
 
@@ -594,6 +629,13 @@ export class SleeperServer {
     const { sport = "nfl", type, lookback_hours = 24, limit = 25 } = args;
     return this._apiCall(`/players/${sport}/trending/${type}`, {
       params: { lookback_hours, limit },
+    });
+  }
+
+  private async _getPlayerOwnership(args: GetPlayerOwnershipArgs) {
+    const { sport = "nfl", season, week, season_type = "regular" } = args;
+    return this._apiCall(`/players/${sport}/research/${season_type}/${season}/${week}`, {
+      baseURL: SLEEPER_ROOT_BASE_URL,
     });
   }
 

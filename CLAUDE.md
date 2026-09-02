@@ -86,7 +86,7 @@ registered through a small tool-module seam.
 - **Two request handlers** registered in `setupToolHandlers()`:
   - `ListToolsRequestSchema` — returns the static array of tool definitions (name, description, JSON `inputSchema`) plus each module's definitions.
   - `CallToolRequestSchema` — checks `moduleHandlers` for `request.params.name` first, then falls through to a `switch` dispatching to a private `_methodName` per static tool.
-- **`_apiCall(endpoint, { params?, shape?, fields? })`** — the single chokepoint for all HTTP made by static tools. Every static tool method builds a path string and delegates here. It calls the shared axios instance (baseURL `https://api.sleeper.app/v1`), passes `response.data` through `shapeResponse` (see **Response shaping**), and wraps the result as compact MCP text content via `asContent` (`src/toolResult.ts`, shared with the player module).
+- **`_apiCall(endpoint, { params?, shape?, fields?, baseURL? })`** — the single chokepoint for all HTTP made by static tools. Every static tool method builds a path string and delegates here. It calls the shared axios instance (baseURL `https://api.sleeper.app/v1`), passes `response.data` through `shapeResponse` (see **Response shaping**), and wraps the result as compact MCP text content via `asContent` (`src/toolResult.ts`, shared with the player module). `baseURL` overrides the instance default for the one request — Sleeper serves a few undocumented endpoints off the API root rather than `/v1`, and `get_player_ownership` uses `SLEEPER_ROOT_BASE_URL` to reach one. Leave it unset for anything under `/v1`.
 - **Error handling**: the `CallToolRequest` handler catches axios errors and returns them as `{ isError: true }` MCP content; non-axios errors are re-thrown.
 - **Tool modules**: `src/ToolModule.ts` defines `{ definitions, handlers }`.
   `SleeperServer` concatenates each module's `definitions` onto its own tool list
@@ -105,6 +105,9 @@ that structure is rigidly parallel, such a tool touches four places in `SleeperS
 3. Add a `case` to the `switch` in the `CallToolRequestSchema` handler.
 4. Add the private `_method` that calls `_apiCall` with the right Sleeper endpoint path,
    plus a `shape` key if the endpoint has a drop-list in `src/responses/noise.ts`.
+   If the endpoint is not under `/v1` (Sleeper has undocumented ones that are not), pass
+   `baseURL` to `_apiCall` rather than standing up a second axios instance or hardcoding an
+   absolute URL — that keeps `_apiCall` the only place this server makes HTTP requests.
 
 If that new tool drops data, add its name to `SHAPED_TOOLS` in `SleeperServer.ts` so the
 `fields` escape hatch is advertised on its schema.
