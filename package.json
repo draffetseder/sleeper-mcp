@@ -25,11 +25,11 @@
   "license": "MIT",
   "description": "An MCP tool server exposing the [Sleeper fantasy sports API](https://docs.sleeper.com/), enabling AI models and agents to manage and query fantasy leagues.",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.27.1",
-    "axios": "^1.13.5"
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "axios": "^1.21.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
+    "@biomejs/biome": "2.6.8",
     "@types/node": "25.5.0",
     "@vitest/coverage-v8": "^4.0.18",
     "typescript": "5.9.3",
